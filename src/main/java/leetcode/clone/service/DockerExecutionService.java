@@ -3,9 +3,7 @@ package leetcode.clone.service;
 import tools.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
-import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.model.Frame;
-import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.StreamType;
 import leetcode.clone.constant.Language;
 import leetcode.clone.entity.helper.TestCase;
@@ -30,25 +28,8 @@ import java.util.concurrent.TimeUnit;
 public class DockerExecutionService {
 
     private final DockerClient dockerClient;
+    private final ContainerPool containerPool;
     private final ObjectMapper objectMapper;
-
-    @Value("${docker.image.java}")
-    private String javaImage;
-
-    @Value("${docker.image.python}")
-    private String pythonImage;
-
-    @Value("${docker.image.cpp}")
-    private String cppImage;
-
-    @Value("${docker.memory.bytes}")
-    private long memoryBytes;
-
-    @Value("${docker.cpu.quota}")
-    private long cpuQuota;
-
-    @Value("${docker.cpu.period}")
-    private long cpuPeriod;
 
     @Value("${docker.timeout.compile.seconds}")
     private long compileTimeoutSeconds;
@@ -57,9 +38,17 @@ public class DockerExecutionService {
     private long runTimeoutSeconds;
 
     public ExecutionOutcome executeAll(String code, Language language, List<TestCase> testCases) {
-        String containerId = createContainer(language);
+        String containerId;
         try {
-            dockerClient.startContainerCmd(containerId).exec();
+            containerId = containerPool.borrow(language);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return ExecutionOutcome.compilationFailure("Container pool interrupted");
+        }
+        if (containerId == null) {
+            return ExecutionOutcome.compilationFailure("No container available — pool exhausted");
+        }
+        try {
             copyToContainer(containerId, code, getFileName(language));
 
             if (language == Language.JAVA || language == Language.CPP) {
@@ -85,30 +74,8 @@ public class DockerExecutionService {
         } catch (Exception e) {
             return ExecutionOutcome.compilationFailure(e.getMessage());
         } finally {
-            dockerClient.removeContainerCmd(containerId).withForce(true).exec();
+            containerPool.release(language, containerId);
         }
-    }
-
-    private String createContainer(Language language) {
-        String image = switch (language) {
-            case JAVA -> javaImage;
-            case PYTHON -> pythonImage;
-            case CPP -> cppImage;
-        };
-
-        HostConfig hostConfig = HostConfig.newHostConfig()
-                .withMemory(memoryBytes)
-                .withCpuQuota(cpuQuota)
-                .withCpuPeriod(cpuPeriod)
-                .withNetworkMode("none");
-
-        CreateContainerResponse container = dockerClient.createContainerCmd(image)
-                .withHostConfig(hostConfig)
-                .withCmd("sleep", "infinity")
-                .withTty(false)
-                .exec();
-
-        return container.getId();
     }
 
     private void copyToContainer(String containerId, String content, String fileName) throws IOException {
