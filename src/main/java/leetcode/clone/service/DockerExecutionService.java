@@ -99,7 +99,7 @@ public class DockerExecutionService {
 
     private TestCaseOutcome compile(String containerId, Language language) throws InterruptedException {
         String[] cmd = switch (language) {
-            case JAVA -> new String[]{"javac", "-d", "/sandbox", "/sandbox/Solution.java"};
+            case JAVA -> new String[]{"javac", "-cp", "/opt/gson.jar", "-d", "/sandbox", "/sandbox/Solution.java"};
             case CPP -> new String[]{"g++", "/sandbox/solution.cpp", "-o", "/sandbox/solution"};
             default -> throw new IllegalArgumentException("Language does not need compilation: " + language);
         };
@@ -108,7 +108,7 @@ public class DockerExecutionService {
 
     private TestCaseOutcome run(String containerId, Language language) throws InterruptedException {
         String[] cmd = switch (language) {
-            case JAVA -> new String[]{"sh", "-c", "java -cp /sandbox Solution < /sandbox/input.json"};
+            case JAVA -> new String[]{"sh", "-c", "java -cp /sandbox:/opt/gson.jar __Runner < /sandbox/input.json"};
             case PYTHON -> new String[]{"sh", "-c", "python3 /sandbox/solution.py < /sandbox/input.json"};
             case CPP -> new String[]{"sh", "-c", "/sandbox/solution < /sandbox/input.json"};
         };

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LeetCode Clone</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .back-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .back-btn:hover { background: rgba(255,255,255,.06); color: var(--text); }
+    .topbar-logo { font-size: 15px; font-weight: 700; color: var(--accent); margin-right: 4px; }
+    .layout { flex: 1; }
+  </style>
+  <link rel="stylesheet" data-name="vs/editor/editor.main"
+        href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.min.css" />
+</head>
+<body>
+  <div style="display:flex;flex-direction:column;height:100vh">
+  <div class="topbar">
+    <span class="topbar-logo">lc</span>
+    <button class="back-btn" onclick="location.href='/'">&#8592; Problem List</button>
+  </div>
+  <div class="layout" style="flex:1;overflow:hidden;display:flex">
+
+    <!-- Left: problem description -->
+    <div class="panel panel-left">
+      <div class="tabs">
+        <span class="tab active">Description</span>
+      </div>
+      <div class="problem-header">
+        <span class="problem-number">1.</span>
+        <span class="problem-title">Two Sum</span>
+        <span class="badge easy">Easy</span>
+      </div>
+      <div class="problem-body">
+        <p>Given an array of integers <code>nums</code> and an integer <code>target</code>, return indices of the two numbers such that they add up to <code>target</code>.</p>
+        <p>You may assume that each input would have <strong>exactly one solution</strong>, and you may not use the same element twice.</p>
+        <h3>Example 1:</h3>
+        <pre><code>Input:  nums = [2,7,11,15], target = 9
+Output: [0,1]</code></pre>
+        <h3>Example 2:</h3>
+        <pre><code>Input:  nums = [3,2,4], target = 6
+Output: [1,2]</code></pre>
+        <h3>Constraints:</h3>
+        <ul>
+          <li>2 ≤ nums.length ≤ 10<sup>4</sup></li>
+          <li>-10<sup>9</sup> ≤ nums[i] ≤ 10<sup>9</sup></li>
+          <li>Only one valid answer exists.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Right: editor + result -->
+    <div class="panel panel-right">
+      <div class="editor-toolbar">
+        <div class="tabs">
+          <span class="tab active">Code</span>
+        </div>
+        <div class="toolbar-right">
+          <select id="language" class="lang-select">
+            <option value="PYTHON">Python</option>
+            <option value="JAVA">Java</option>
+            <option value="CPP">C++</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="monaco-editor" class="monaco-container"></div>
+
+      <div class="bottom-bar">
+        <div class="result-area" id="result-area">
+          <span class="result-placeholder">Submit your code to see the result</span>
+        </div>
+        <button class="btn-submit" id="btn-submit">Submit</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>var require = { paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } };</script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.nls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.js"></script>
+  </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

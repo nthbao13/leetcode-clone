@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LeetCode Clone</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { overflow: auto; }
+
+    .page { max-width: 1000px; margin: 0 auto; padding: 32px 24px; }
+
+    .site-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+    .site-logo { font-size: 22px; font-weight: 700; color: var(--accent); }
+    .site-logo span { color: var(--text); font-weight: 400; }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 12px;
+    }
+
+    .problem-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .problem-table th {
+      text-align: left;
+      padding: 10px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      border-bottom: 1px solid var(--border);
+    }
+    .problem-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .problem-table tr:last-child td { border-bottom: none; }
+    .problem-table tbody tr {
+      cursor: pointer;
+      transition: background .12s;
+    }
+    .problem-table tbody tr:hover { background: rgba(255,255,255,.04); }
+
+    .td-num { color: var(--text-muted); width: 60px; }
+
+    .td-title a {
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .td-title a:hover { color: var(--accent); }
+
+    .td-diff { width: 100px; }
+
+    .badge-easy   { color: #00b8a3; }
+    .badge-medium { color: #ffa116; }
+    .badge-hard   { color: #ef4743; }
+
+    .td-tag { width: 160px; }
+    .tag {
+      display: inline-block;
+      background: rgba(255,255,255,.07);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .td-status { width: 60px; text-align: center; }
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+    .status-dot.solved { background: #00b8a3; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="site-header">
+      <div class="site-logo">leet<span>code</span> <span style="color:var(--text-muted);font-size:13px">clone</span></div>
+    </header>
+
+    <div class="section-title">Problems</div>
+
+    <table class="problem-table" id="problem-table">
+      <thead>
+        <tr>
+          <th class="td-status"></th>
+          <th class="td-num">#</th>
+          <th>Title</th>
+          <th class="td-tag">Tag</th>
+          <th class="td-diff">Difficulty</th>
+        </tr>
+      </thead>
+      <tbody id="problem-list">
+        <tr>
+          <td colspan="5" style="color:var(--text-muted);text-align:center;padding:32px">Loading…</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script src="problems.js"></script>
+</body>
+</html>
