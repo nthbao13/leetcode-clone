@@ -28,8 +28,8 @@ import java.util.concurrent.TimeUnit;
 public class DockerExecutionService {
 
     private final DockerClient dockerClient;
-    private final ContainerPool containerPool;
     private final ObjectMapper objectMapper;
+    private final ContainerPool containerPool;
 
     @Value("${docker.timeout.compile.seconds}")
     private long compileTimeoutSeconds;
@@ -46,8 +46,9 @@ public class DockerExecutionService {
             return ExecutionOutcome.compilationFailure("Container pool interrupted");
         }
         if (containerId == null) {
-            return ExecutionOutcome.compilationFailure("No container available — pool exhausted");
+            return ExecutionOutcome.compilationFailure("Container pool exhausted");
         }
+
         try {
             copyToContainer(containerId, code, getFileName(language));
 

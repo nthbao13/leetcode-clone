@@ -1,147 +1,161 @@
-# Load Test Analysis v2 — Leetcode Clone
+# Load Test Analysis v2 — Container Pool
 
 **Date:** 2026-09-21  
 **Tester:** k6 v0.57 | Spring Boot 4.1.1 | PostgreSQL 16 | Docker  
+**JVM:** `-Xmx512m -Xms256m` | Docker containers: 256MB RAM / 0.5 CPU  
 **So sánh với:** `load-test-analysis_v1.md`
 
 ---
 
 ## 1. Thay đổi so với v1
 
-| # | Vấn đề (v1) | Fix đã thực hiện |
-|---|-------------|-----------------|
-| 1 | Docker cold start ~1,054ms/submission | **Container pool** — 15 container pre-warmed (5/language) |
-| 2 | Response 65 KB, circular reference, `submitStatus` missing | **`SubmissionResponseDTO`** — trả về 7 field, không embed `Problem` |
-| 3 | k6 không đo được end-to-end latency | Fix từ #2, `submission_total_ms` hoạt động đúng |
-
-Chưa fix: thread pool unbounded (vấn đề #2 trong v1).
+| # | Vấn đề (v1) | Fix trong v2 |
+|---|-------------|-------------|
+| 1 | Docker cold start ~1,054ms/submission | **Container pool** — 15 containers pre-warmed (5/language), reuse qua `exec` |
+| 2 | Response 65 KB, circular reference | **`SubmissionResponseDTO`** — 7 field, không embed `Problem` |
 
 ---
 
 ## 2. Kịch bản k6
 
-Giữ nguyên script v1:
-
 ```
-Stage 1:  0 → 1 VU   (30s)
-Stage 2:  1 → 5 VUs  (30s)
-Stage 3:  5 → 10 VUs (30s)
-Stage 4: 10 → 20 VUs (30s)
-Stage 5: 20 → 0 VUs  (30s)
-Tổng: 2m30s
+Stage 1:  0 →  5 VUs (30s)
+Stage 2:  5 → 20 VUs (30s)
+Stage 3: 20 → 35 VUs (30s)
+Stage 4: 35 → 50 VUs (30s)
+Stage 5: 50 →  0 VUs (30s)
+Tổng: 2m30s, max 50 VUs
 ```
 
-Mỗi iteration: POST `/api/v1/submission` → poll GET mỗi 0.5s cho đến `submitStatus == DONE` (tối đa 15s).
+Payload: Python Two Sum, input array 10,000 phần tử `[1..10000]`, target=19999.
 
 ---
 
 ## 3. Kết quả k6
 
-### HTTP metrics
-
-| Metric | v1 (trước) | v2 (sau) | Thay đổi |
-|--------|-----------|---------|---------|
-| Iterations hoàn chỉnh (end-to-end) | ~0 (poll không detect DONE) | **1,627** | ✅ Flow hoạt động |
-| HTTP req/s | 461 | **24.9** | Giảm — do mỗi iteration nặng hơn (có poll) |
-| `http_req_failed` | 0.00% | **0.00%** | = |
-| `http_req_duration` avg | 15.22 ms | **2.41 ms** | ↓ 6x (response nhỏ hơn) |
-| `http_req_duration` p95 | 45.61 ms | **5.32 ms** | ↓ 8x |
-| Data received | **4.5 GB** | **894 KB** | ↓ ~5,000x |
-| Data sent | 30 MB | 910 KB | ↓ 33x |
-
-### Custom metrics (mới hoạt động từ v2)
+### Latency end-to-end (submission_total_ms)
 
 | Metric | Giá trị |
 |--------|---------|
-| `submission_total_ms` avg | **658 ms** |
-| `submission_total_ms` med | 506 ms |
-| `submission_total_ms` p90 | 1,000 ms |
-| `submission_total_ms` p95 | **1,000 ms** |
-| `wrong_answer_count` | 1,627 (100% submissions) |
+| avg | 2.04 s |
+| median (p50) | 2.04 s |
+| p90 | 3.56 s |
+| p95 | 3.59 s |
+| max | 4.14 s |
+| min | 516 ms |
 
-> `submission_total_ms` = thời gian từ lúc POST đến khi poll nhận được `DONE` — đây là latency **thực tế từ góc nhìn user**.
+### HTTP metrics
+
+| Metric | Giá trị |
+|--------|---------|
+| Iterations hoàn chỉnh | **1,623** |
+| Throughput (submissions/s) | **10.80 /s** |
+| Tổng HTTP requests | 8,126 |
+| HTTP req/s | 54.08 /s |
+| `http_req_failed` | 0.00% |
+| `http_req_duration` avg | 8.72 ms |
+| `http_req_duration` median | 5.71 ms |
+| `http_req_duration` p90 | 17.53 ms |
+| `http_req_duration` p95 | 22.94 ms |
+| `http_req_duration` max | 177.92 ms |
+| Data received | 1.9 MB |
+| Data sent | 1.3 MB |
 
 ### Checks
 
-| Check | v1 | v2 |
-|-------|----|----|
-| `submit ok` | ✓ 100% | ✓ 100% |
-| `completed` (submitStatus == DONE) | không chạy | ✓ **100%** |
-| `accepted` (buildStatus == SUCCESS) | không chạy | ✗ 0% |
+| Check | Kết quả |
+|-------|---------|
+| `submit ok` (POST 200) | ✓ 100% |
+| `completed` (submitStatus == DONE) | ✓ 100% |
+| `accepted` (buildStatus == SUCCESS) | ✗ 0% |
 
 ### Threshold
 
-| Threshold | v1 | v2 |
-|-----------|----|----|
-| `http_req_failed < 1%` | PASS | **PASS** |
-| `submission_total_ms p95 < 15s` | PASS (vô nghĩa) | **PASS** (1s < 15s, có ý nghĩa) |
+| Threshold | Kết quả |
+|-----------|---------|
+| `http_req_failed < 1%` | ✅ PASS (0%) |
+| `submission_total_ms p(95) < 15s` | ✅ PASS (3.59s) |
 
 ---
 
-## 4. DB sau test
+## 4. JVM / Server metrics (Prometheus, peak trong test)
 
-| submit_status | build_status | Số lượng |
-|---------------|--------------|---------|
-| DONE | WRONG_ANSWER | 1,627 |
+### Memory
 
-**Không còn submissions tồn đọng PENDING.** 1,627 submissions đều được xử lý trong vòng test.
+| Metric | Giá trị |
+|--------|---------|
+| JVM Heap used peak | **124.7 MB** (Eden 60 + Old 57.6 + Survivor 7) |
+| JVM Non-Heap peak | ~111.2 MB |
+| Tổng JVM memory peak | **~236 MB** / 512 MB configured (46%) |
+
+### CPU
+
+| Metric | Giá trị |
+|--------|---------|
+| JVM process CPU peak | **5.2%** |
+| System CPU peak | **78.6%** |
+
+### Threads
+
+| Metric | Giá trị |
+|--------|---------|
+| Live threads peak | 38 |
+
+### GC
+
+| Metric | Giá trị |
+|--------|---------|
+| GC pause tổng (5m window) | 854.2 ms (G1 Young Generation) |
 
 ---
 
 ## 5. Phân tích
 
-### 5.1 Container pool hoạt động đúng
-
-Đo trực tiếp trên DB:
-
-| Submission | `runtime_ms` (Docker exec) |
-|------------|--------------------------|
-| 237874 | **91 ms** |
-| 237875 | **73 ms** |
-
-So sánh:
+### 5.1 Container pool — cải thiện thực tế
 
 | | v1 (cold start) | v2 (pool) |
 |--|--|--|
-| Thời gian tạo + chạy container | ~1,054 ms | **~73–91 ms** |
-| Cải thiện | — | **~12–14x nhanh hơn** |
+| Borrow container | ~800–900 ms (create+start) | **~0 ms** (dequeue từ pool) |
+| Exec (Python run) | ~100–150 ms | **~80–130 ms** |
+| Return container | ~50 ms (remove) | **~5 ms** (clean sandbox + enqueue) |
+| **Tổng/submission** | **~1,054 ms** | **~85–135 ms** |
 
-`submission_total_ms` avg = 658ms > 73ms vì bao gồm cả overhead polling (0.5s sleep giữa mỗi lần poll).
+### 5.2 Throughput tăng nhưng bị giới hạn bởi pool size
 
-### 5.2 Throughput thực tế với pool
+Pool 5 containers/language. Khi 50 VU cùng chạy Python:
+- 5 VU exec đồng thời
+- 45 VU còn lại block chờ pool (borrow timeout 30s)
 
-Pool 5 containers/language, 1 VU tại stage đầu:
-
+Throughput tối đa lý thuyết với pool=5:
 ```
-Observed: ~1 iteration/second (với 1 VU)
-submission_total_ms avg = 658ms → ~1.5 iterations/s per VU (lý thuyết)
+5 containers × (1000ms / ~110ms per exec) ≈ 45 submissions/s
 ```
 
-Tại 20 VUs nhưng pool chỉ có 5 containers/language:
-- 5 VU chạy đồng thời, 15 VU bị block chờ pool
-- Throughput bị giới hạn bởi pool size, không phải thread pool
+Thực tế đo được **10.80/s** — thấp hơn lý thuyết vì:
+1. Overhead polling (0.5s sleep × nhiều polls/iteration)
+2. 4 test cases mỗi submission (phải exec 4 lần per container borrow)
+3. Java compilation overhead (test case JAVA sẽ tốn hơn, nhưng test này dùng PYTHON)
 
-### 5.3 `accepted` 0% — bug logic bài Two Sum
+### 5.3 System CPU giảm từ 92.8% → 78.6%
 
-Tất cả submissions đều trả về `WRONG_ANSWER`. Nguyên nhân nằm ở cách test case đọc input, không liên quan infrastructure. Cần điều tra riêng.
+Không còn `docker create/start/remove` mỗi submission. CPU giảm do:
+- Không còn overlay filesystem create/destroy
+- Không còn container namespace setup
 
-### 5.4 Vấn đề còn lại
+### 5.4 Memory tăng nhẹ
 
-| Vấn đề | Trạng thái |
-|--------|-----------|
-| Thread pool unbounded | Chưa fix — không gây issue ở scale này |
-| Pool size 5 giới hạn concurrency tại 20 VUs | Có thể tăng `docker.pool.size` |
-| `accepted` 0% | Bug logic Two Sum cần debug |
+Heap peak tăng từ 108 MB → 124.7 MB (+15%) do:
+- 15 containers pre-warmed chiếm thêm memory trong JVM (container state, exec callbacks)
+- Nhiều submission xử lý hơn (1,623 vs 1,144) → nhiều objects hơn
+
+Vẫn trong giới hạn tốt: 124.7 MB / 512 MB (24%).
 
 ---
 
-## 6. So sánh tổng thể v1 vs v2
+## 6. Vấn đề còn lại
 
-| | v1 | v2 |
-|--|--|--|
-| Flow end-to-end hoạt động | ❌ | ✅ |
-| `submission_total_ms` đo được | ❌ (luôn 0) | ✅ avg 658ms |
-| DB tồn đọng sau test | +221,290 PENDING | **0** |
-| Response size | 65 KB (broken JSON) | **~100 bytes** |
-| Container lifecycle | create/remove mỗi lần | **pool reuse** |
-| Docker time/submission | ~1,054 ms | **~73–91 ms** |
+| Vấn đề | Tác động | Trạng thái |
+|--------|----------|-----------|
+| Pool size 5 giới hạn concurrency | Throughput cap ~45/s khi 50 VU | Tăng `docker.pool.size` — chi phí thấp (Python ~530KB, Java ~7.7MB per container idle) |
+| Thread pool unbounded | Không có backpressure khi overload | Chưa fix |
+| buildStatus WRONG_ANSWER 100% | Bug test case logic | Chưa fix (ngoài scope) |

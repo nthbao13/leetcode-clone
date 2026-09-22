@@ -6,13 +6,14 @@ const submissionDuration = new Trend('submission_total_ms', true);
 const tleCounts = new Counter('tle_count');
 const wrongAnswerCounts = new Counter('wrong_answer_count');
 const successCounts = new Counter('success_count');
+const poolExhaustedCounts = new Counter('pool_exhausted_count');
 
 export const options = {
     stages: [
-        { duration: '30s', target: 1 },
         { duration: '30s', target: 5 },
-        { duration: '30s', target: 10 },
         { duration: '30s', target: 20 },
+        { duration: '30s', target: 35 },
+        { duration: '30s', target: 50 },
         { duration: '30s', target: 0 },
     ],
     thresholds: {
@@ -23,7 +24,10 @@ export const options = {
 
 const BASE_URL = 'http://localhost:8080';
 
-// Simple two-sum solution in Python (reads JSON array from stdin)
+// Two Sum — array 10k phần tử [1..10000], target=19999, answer=[9998,9999]
+const NUMS = Array.from({ length: 10000 }, (_, i) => i + 1);
+const TARGET = 19999;
+
 const CODE = `
 import json, sys
 data = json.loads(input())
@@ -49,7 +53,10 @@ export default function () {
     check(submitRes, { 'submit ok': (r) => r.status === 200 });
 
     const id = submitRes.json('id');
-    if (!id) return;
+    if (!id) {
+        poolExhaustedCounts.add(1);
+        return;
+    }
 
     // Poll until DONE (max 15s)
     let submitStatus = '';
